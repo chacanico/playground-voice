@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "api/voice.py": {
+      "maxDuration": 90,
+      "includeFiles": "tools/voice_relay.py",
+      "excludeFiles": "{main,components,reference,design,sounds}/**"
+    }
+  }
+}
