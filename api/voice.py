@@ -3,7 +3,7 @@ import hmac
 from http.server import BaseHTTPRequestHandler
 import os
 
-from tools.voice_relay import Conversation, MAX_RECORDING
+from tools.voice_relay import Conversation, MAX_RECORDING, RealtimeError
 
 
 class handler(BaseHTTPRequestHandler):
@@ -43,7 +43,8 @@ class handler(BaseHTTPRequestHandler):
         try:
             reply = conversation.ask(audio)
         except Exception as error:
-            self.log_error("Voice request failed (%s)", type(error).__name__)
+            detail = str(error) if isinstance(error, RealtimeError) else type(error).__name__
+            self.log_error("Voice request failed (%s)", detail)
             self.send_error(502)
             return
         finally:

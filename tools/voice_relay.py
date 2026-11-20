@@ -6,6 +6,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import ipaddress
 import json
 import os
+import re
 import time
 from urllib.parse import urlencode
 
@@ -13,6 +14,18 @@ from websocket import create_connection
 
 MAX_RECORDING = 80000
 MAX_REPLY = 240000
+
+
+class RealtimeError(RuntimeError):
+    """Report only machine-readable fields, never audio, transcripts or secrets."""
+
+    def __init__(self, category, details):
+        fields = [category]
+        for key in ("type", "code", "reason", "param"):
+            value = details.get(key)
+            if isinstance(value, str) and re.fullmatch(r"[a-zA-Z0-9_.-]{1,80}", value):
+                fields.append(f"{key}={value}")
+        super().__init__(" ".join(fields))
 
 
 class Conversation:
@@ -28,7 +41,7 @@ class Conversation:
     def receive(self):
         message = json.loads(self.socket.recv())
         if message["type"] == "error":
-            raise RuntimeError("Realtime rejected an event")
+            raise RealtimeError("Realtime event rejected", message.get("error") or {})
         return message
 
     def close(self):
@@ -77,7 +90,11 @@ class Conversation:
             elif event["type"] == "response.done":
                 if event["response"]["status"] == "completed" and reply:
                     return reply
-                raise RuntimeError("Conversation returned no complete audio")
+                details = event["response"].get("status_details") or {}
+                raise RealtimeError("Realtime response incomplete", {
+                    **details,
+                    **(details.get("error") or {}),
+                })
         raise TimeoutError("Realtime response timed out")
 
 
